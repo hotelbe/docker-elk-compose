@@ -1,0 +1,146 @@
+version: '3'
+
+services:
+  elasticsearch-data1:
+    build:
+      context: ./build/elasticsearch
+      args:
+        ELK_VERSION: $ELK_VERSION
+    container_name: elasticsearch-data1
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./opt/elasticsearch1/data:/usr/share/elasticsearch/data
+      - ./opt/elasticsearch1/logs:/usr/share/elasticsearch/logs
+      - ./build/elasticsearch/sysctl.conf:/etc/sysctl.conf:ro
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      - node.name=elasticsearch-data1
+      - cluster.name=docker-cluster
+      - discovery.seed_hosts=elasticsearch-data2,elasticsearch-data3
+      - cluster.initial_master_nodes=elasticsearch-data1,elasticsearch-data2,elasticsearch-data3
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - ELASTIC_PASSWORD=changeme
+    networks:
+      - elk
+
+  elasticsearch-data2:
+    build:
+      context: ./build/elasticsearch
+      args:
+        ELK_VERSION: $ELK_VERSION
+    container_name: elasticsearch-data2
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./opt/elasticsearch2/data:/usr/share/elasticsearch/data
+      - ./opt/elasticsearch2/logs:/usr/share/elasticsearch/logs
+      - ./build/elasticsearch/sysctl.conf:/etc/sysctl.conf:ro
+    environment:
+      - node.name=elasticsearch-data2
+      - cluster.name=docker-cluster
+      - discovery.seed_hosts=elasticsearch-data1,elasticsearch-data3
+      - cluster.initial_master_nodes=elasticsearch-data1,elasticsearch-data2,elasticsearch-data3
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - ELASTIC_PASSWORD=changeme
+    networks:
+      - elk
+
+  elasticsearch-data3:
+    build:
+      context: ./build/elasticsearch
+      args:
+        ELK_VERSION: $ELK_VERSION
+    container_name: elasticsearch-data3
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./opt/elasticsearch3/data:/usr/share/elasticsearch/data
+      - ./opt/elasticsearch3/logs:/usr/share/elasticsearch/logs
+      - ./build/elasticsearch/sysctl.conf:/etc/sysctl.conf:ro
+    environment:
+      - node.name=elasticsearch-data3
+      - cluster.name=docker-cluster
+      - discovery.seed_hosts=elasticsearch-data1,elasticsearch-data2
+      - cluster.initial_master_nodes=elasticsearch-data1,elasticsearch-data2,elasticsearch-data3
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - ELASTIC_PASSWORD=changeme
+    networks:
+      - elk
+
+  cerebro:
+    build: ./build/cerebro
+    container_name: cerebro
+    volumes:
+      - ./opt/cerebro/logs:/opt/cerebro/logs
+      - ./opt/cerebro/conf/application.conf:/opt/cerebro/conf/application.conf
+    ports:
+      - 9400:9000
+    environment:
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - ELASTIC_USERNAME=elastic
+      - ELASTIC_PASSWORD=changeme
+    depends_on:
+      - elasticsearch-data1
+      - elasticsearch-data2
+      - elasticsearch-data3
+    networks:
+      - elk
+    links:
+      - elasticsearch-data1:elasticsearch
+
+  logstash:
+    build:
+      context: ./build/logstash
+      args:
+        ELK_VERSION: $ELK_VERSION
+    container_name: logstash
+    volumes:
+      - ./opt/logstash/data:/usr/share/logstash/data
+      - ./opt/logstash/logs:/usr/share/logstash/logs
+      - ./opt/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./opt/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    ports:
+      - 5000:5000
+      - 9600:9600
+    environment:
+      - LS_JAVA_OPTS=-Xmx256m -Xms256m
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch-data1
+    links:
+      - elasticsearch-data1:elasticsearch
+
+  kibana:
+    build:
+      context: ./build/kibana
+      args:
+        ELK_VERSION: $ELK_VERSION
+    container_name: kibana
+    volumes:
+      - ./opt/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    ports:
+      - 5601:5601
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch-data1
+    links:
+      - elasticsearch-data1:elasticsearch
+
+networks:
+  elk:
+    driver: bridge

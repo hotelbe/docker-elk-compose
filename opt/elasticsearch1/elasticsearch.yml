@@ -1,0 +1,24 @@
+---
+## Default Elasticsearch configuration from elasticsearch-docker.
+## from https://github.com/elastic/elasticsearch-docker/blob/master/.tedi/template/elasticsearch.yml
+#
+cluster.name: docker-cluster
+node.name: elasticsearch-data1
+
+#http.cors.enabled: true
+#http.cors.allow-origin: "*"
+
+## Use single node discovery in order to disable production mode and avoid bootstrap checks
+## see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+#
+
+discovery.seed_hosts: elasticsearch-data1,elasticsearch-data2
+cluster.initial_master_nodes: elasticsearch-data1,elasticsearch-data2,elasticsearch-data3
+bootstrap.memory_lock: true
+
+## X-Pack settings
+## see https://www.elastic.co/guide/en/elasticsearch/reference/current/setup-xpack.html
+#
+xpack.license.self_generated.type: basic
+xpack.security.enabled: true
+xpack.monitoring.collection.enabled: true
